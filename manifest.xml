@@ -1,0 +1,19 @@
+<package>
+  <description brief="camera_pose_estimation">
+
+     camera_pose_estimation
+
+  </description>
+  <author>Underwater Haptics 1</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/camera_pose_estimation</url>
+  <depend package="std_msgs"/>
+  <depend package="roscpp"/>
+  <depend package="opencv2"/>
+  <depend package="tf"/>
+  <depend package="rviz"/>
+
+</package>
+
+
