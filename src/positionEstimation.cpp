@@ -12,6 +12,8 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+    cout << "hello world" << endl;
+
     ros::init(argc, argv, "marker_tf_broadcaster");
     ros::NodeHandle nh;
 

@@ -18,8 +18,9 @@ public:
     void setup(ros::NodeHandle nh);
     void loop();
     void processImage(cv::Mat& image, cv::Mat& image_gray);
-    void publishCameraTF(AprilTags::TagDetection detection);
+    void publishCameraTF(Eigen::Matrix4d T);
     void publishMarkerTF();
+    cv::Mat projectAxis(cv::Mat img, Eigen::Matrix3d rot, Eigen::Vector3d trans);
 
 private:
     AprilTags::TagDetector* tagDetector;
