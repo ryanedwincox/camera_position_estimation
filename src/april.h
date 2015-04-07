@@ -18,7 +18,7 @@ public:
     void setup(ros::NodeHandle nh);
     void loop();
     void processImage(cv::Mat& image, cv::Mat& image_gray);
-    void publishCameraTF(Eigen::Matrix4d T);
+    void publishCameraTF(cv::Mat rMat, cv::Mat tvec);
     void publishMarkerTF();
     cv::Mat projectAxis(cv::Mat img, Eigen::Matrix3d rot, Eigen::Vector3d trans);
 

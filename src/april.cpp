@@ -70,48 +70,130 @@ void April::processImage(cv::Mat& img, cv::Mat& image_gray) {
         double px = 600.9586;
         double py = 244.52;
         Eigen::Matrix4d T;
-//        T = detections[0].getRelativeTransform(tag_size, fx, fy, px, py);
+        T = detections[0].getRelativeTransform(tag_size, fx, fy, px, py);
 
-        Eigen::Vector3d translation;
-        Eigen::Matrix3d rotation;
-        detections[0].getRelativeTranslationRotation(tag_size, fx, fy, px, py,
-                                                 translation, rotation);
+//        Eigen::Vector3d translation;
+//        Eigen::Matrix3d rotation;
+//        detections[0].getRelativeTranslationRotation(tag_size, fx, fy, px, py,
+//                                                 translation, rotation);
 
-        // Take inverse of transform
-        Eigen::Matrix4d inverseT;
-        Eigen::Matrix3d rot = T.topLeftCorner(3,3);
-        Eigen::Vector3d trans = T.topRightCorner(3,1);
+        std::vector<cv::Point3f> objPts;
+        std::vector<cv::Point2f> imgPts;
+        double s = tag_size/2.;
+        objPts.push_back(cv::Point3f(-s,-s, 0));
+        objPts.push_back(cv::Point3f( s,-s, 0));
+        objPts.push_back(cv::Point3f( s, s, 0));
+        objPts.push_back(cv::Point3f(-s, s, 0));
 
-        Eigen::Matrix3d inverseRot = rot.transpose();
-        Eigen::Vector3d inverseTrans = -rot*trans;
+        std::pair<float, float> p1 = detections[0].p[0];
+        std::pair<float, float> p2 = detections[0].p[1];
+        std::pair<float, float> p3 = detections[0].p[2];
+        std::pair<float, float> p4 = detections[0].p[3];
+        imgPts.push_back(cv::Point2f(p1.first, p1.second));
+        imgPts.push_back(cv::Point2f(p2.first, p2.second));
+        imgPts.push_back(cv::Point2f(p3.first, p3.second));
+        imgPts.push_back(cv::Point2f(p4.first, p4.second));
 
-        inverseT.topLeftCorner(3,3) = inverseRot;
-        inverseT.topRightCorner(3,1) = inverseTrans;
-        inverseT.row(3) << 0, 0, 0, 1;
+        cv::Mat rvec, tvec;
+        // Camera matrices from camera calibration
+        cv::Mat cameraMatrix(3,3,cv::DataType<double>::type);
+        cameraMatrix.at<double>(0,0) = 644.50;
+        cameraMatrix.at<double>(0,1) = 0;
+        cameraMatrix.at<double>(0,2) = 339.18;
+        cameraMatrix.at<double>(1,0) = 0;
+        cameraMatrix.at<double>(1,1) = 600.9586;
+        cameraMatrix.at<double>(1,2) = 244.52;
+        cameraMatrix.at<double>(2,0) = 0;
+        cameraMatrix.at<double>(2,1) = 0;
+        cameraMatrix.at<double>(2,2) = 1;
 
-        T.topLeftCorner(3,3) = rotation;
-        T.topRightCorner(3,1) = translation;
-        T.row(3) << 0, 0, 0, 1;
+        cv::Mat distCoeffs(5,1,cv::DataType<double>::type);
+        distCoeffs.at<double>(0) = 0.09386;
+        distCoeffs.at<double>(1) = 0.03747;
+        distCoeffs.at<double>(2) = 0.0026472;
+        distCoeffs.at<double>(3) = 0.00422;
+        distCoeffs.at<double>(4) = -0.4924;
+        cv::solvePnP(objPts, imgPts, cameraMatrix, distCoeffs, rvec, tvec);
 
-//        img = projectAxis(img, detections[0].homography, trans);
+        // project axis
+        cv::Mat axis(4,1,cv::DataType<cv::Point3f>::type);
+        axis.at<cv::Point3f>(0) = (cv::Point3f){0,0,0};
+        axis.at<cv::Point3f>(1) = (cv::Point3f){0.1,0,0};
+        axis.at<cv::Point3f>(2) = (cv::Point3f){0,0.1,0};
+        axis.at<cv::Point3f>(3) = (cv::Point3f){0,0,0.1};
+
+        std::vector<cv::Point2f> projectedPoints;
+        cv::projectPoints(axis, rvec, tvec, cameraMatrix, distCoeffs, projectedPoints);
+
+        cv::line(img, projectedPoints[0], projectedPoints[1], cv::Scalar(0,0,255), 2);
+        cv::line(img, projectedPoints[0], projectedPoints[2], cv::Scalar(0,255,0), 2);
+        cv::line(img, projectedPoints[0], projectedPoints[3], cv::Scalar(255,0,0), 2);
+
+        // inverse pose estimation to get camera position
+        cv::Mat rMat(3,3,cv::DataType<double>::type);
+        cv::Mat rMatTrans(3,3,cv::DataType<double>::type);
+        cv::Mat tvecCam(3,1,cv::DataType<double>::type);
+
+        cv::Rodrigues(rvec, rMat);
+        cv::transpose(rMat, rMatTrans);
+        tvecCam = -rMatTrans * tvec;
+
+        publishCameraTF(rMatTrans, tvecCam);
+
+
+
+//        // Take inverse of transform
+//        Eigen::Matrix4d inverseT;
+//        Eigen::Matrix3d rotation = T.topLeftCorner(3,3);
+//        Eigen::Vector3d translation = T.topRightCorner(3,1);
+
+//        Eigen::Matrix3d inverseRot = rotation.transpose();
+//        Eigen::Vector3d inverseTrans = -rotation*translation;
+
+//        inverseT.topLeftCorner(3,3) = inverseRot;
+//        inverseT.topRightCorner(3,1) = inverseTrans;
+//        inverseT.row(3) << 0, 0, 0, 1;
+
+//        T.topLeftCorner(3,3) = rotation;
+//        T.topRightCorner(3,1) = translation;
+//        T.row(3) << 0, 0, 0, 1;
+
+//        img = projectAxis(img, rotation, translation);
 
         // publish tf of inverse transform
-        publishCameraTF(T);
+//        publishCameraTF(inverseT);
     }
 
     imshow("April Tag Detection", img); // OpenCV call
 
 }
 
-void April::publishCameraTF(Eigen::Matrix4d T)
+//void April::publishCameraTF(Eigen::Matrix4d T)
+//{
+//    tfScalar m00 = T(0,0); tfScalar m01 = T(0,1); tfScalar m02 = T(0,2);
+//    tfScalar m10 = T(1,0); tfScalar m11 = T(1,1); tfScalar m12 = T(1,2);
+//    tfScalar m20 = T(2,0); tfScalar m21 = T(2,1); tfScalar m22 = T(2,2);
+//    tf::Matrix3x3 rotMat(m00,m01,m02,
+//                        m10,m11,m12,
+//                        m20,m21,m22);
+////    tf::Vector3 transVec(T(0,3), T(1,3), T(2,3));
+//    tf::Vector3 transVec(0, 0, 0);
+
+//    tf::Transform transform(rotMat, transVec);
+
+//    static tf::TransformBroadcaster br;
+//    br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "marker", "camera"));
+//}
+
+void April::publishCameraTF(cv::Mat rMat, cv::Mat tvec)
 {
-    tfScalar m00 = T(0,0); tfScalar m01 = T(0,1); tfScalar m02 = T(0,2);
-    tfScalar m10 = T(1,0); tfScalar m11 = T(1,1); tfScalar m12 = T(1,2);
-    tfScalar m20 = T(2,0); tfScalar m21 = T(2,1); tfScalar m22 = T(2,2);
+    tfScalar m00 = rMat.at<double>(0,0); tfScalar m01 = rMat.at<double>(0,1); tfScalar m02 = rMat.at<double>(0,2);
+    tfScalar m10 = rMat.at<double>(1,0); tfScalar m11 = rMat.at<double>(1,1); tfScalar m12 = rMat.at<double>(1,2);
+    tfScalar m20 = rMat.at<double>(2,0); tfScalar m21 = rMat.at<double>(2,1); tfScalar m22 = rMat.at<double>(2,2);
     tf::Matrix3x3 rotMat(m00,m01,m02,
                         m10,m11,m12,
                         m20,m21,m22);
-    tf::Vector3 transVec(T(0,3), T(1,3), T(2,3));
+    tf::Vector3 transVec (tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
 
     tf::Transform transform(rotMat, transVec);
 
