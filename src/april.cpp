@@ -42,7 +42,7 @@ void April::setup(ros::NodeHandle nh)
     rvec = cv::Mat(3,1,cv::DataType<double>::type);
     tvec = cv::Mat(3,1,cv::DataType<double>::type);
 
-    tag_size = 0.2;
+    tag_size = 0.172244;
 }
 
 // The processing loop where images are retrieved, tags detected,
@@ -77,36 +77,67 @@ void April::processImage(cv::Mat& img, cv::Mat& image_gray) {
 ////    print_detection(detections[i]);
 //    }
 
+    // publish tf for marker origin in world frame
+    publishMarkerTF();
+
+
+
+    std::vector<cv::Point3f> objPts;
+    std::vector<cv::Point2f> imgPts;
+
     // show the current image including any detections
     for (int i=0; i<detections.size(); i++) {
-      // also highlight in the image
-      detections[i].draw(img);
+        // also highlight in the image
+        detections[i].draw(img);
+
+        if (detections[i].id == 1)
+        {
+            double s = tag_size/2.;
+
+            // Get transform matrix from marker
+            objPts.push_back(cv::Point3f(-s,-s, 0));
+            objPts.push_back(cv::Point3f( s,-s, 0));
+            objPts.push_back(cv::Point3f( s, s, 0));
+            objPts.push_back(cv::Point3f(-s, s, 0));
+
+            std::pair<float, float> p1 = detections[i].p[0];
+            std::pair<float, float> p2 = detections[i].p[1];
+            std::pair<float, float> p3 = detections[i].p[2];
+            std::pair<float, float> p4 = detections[i].p[3];
+            imgPts.push_back(cv::Point2f(p1.first, p1.second));
+            imgPts.push_back(cv::Point2f(p2.first, p2.second));
+            imgPts.push_back(cv::Point2f(p3.first, p3.second));
+            imgPts.push_back(cv::Point2f(p4.first, p4.second));
+
+//            cv::circle(img, cv::Point2f(p2.first, p2.second), 6, cv::Scalar(0,0,255));
+        }
+
+        if (detections[i].id == 2)
+        {
+            double s = tag_size/2.;
+
+            double Off1 = 0.022225; // z offset
+            double zOff2 = Off1 + tag_size;
+
+            // Get transform matrix from marker
+            objPts.push_back(cv::Point3f(s+Off1,-s, Off1));
+            objPts.push_back(cv::Point3f(s+Off1,-s, zOff2));
+            objPts.push_back(cv::Point3f(s+Off1, s, zOff2));
+            objPts.push_back(cv::Point3f(s+Off1, s, Off1));
+
+            std::pair<float, float> p1 = detections[i].p[0];
+            std::pair<float, float> p2 = detections[i].p[1];
+            std::pair<float, float> p3 = detections[i].p[2];
+            std::pair<float, float> p4 = detections[i].p[3];
+            imgPts.push_back(cv::Point2f(p1.first, p1.second));
+            imgPts.push_back(cv::Point2f(p2.first, p2.second));
+            imgPts.push_back(cv::Point2f(p3.first, p3.second));
+            imgPts.push_back(cv::Point2f(p4.first, p4.second));
+        }
     }
 
-    // publish tf for first detection
-    publishMarkerTF();
-    if (detections.size() > 0)
+    if (objPts.size() == 8)
     {
-        // Get transform matrix from marker
-        double s = tag_size/2.;
-
-        std::vector<cv::Point3f> objPts;
-        std::vector<cv::Point2f> imgPts;
-        objPts.push_back(cv::Point3f(-s,-s, 0));
-        objPts.push_back(cv::Point3f( s,-s, 0));
-        objPts.push_back(cv::Point3f( s, s, 0));
-        objPts.push_back(cv::Point3f(-s, s, 0));
-
-        std::pair<float, float> p1 = detections[0].p[0];
-        std::pair<float, float> p2 = detections[0].p[1];
-        std::pair<float, float> p3 = detections[0].p[2];
-        std::pair<float, float> p4 = detections[0].p[3];
-        imgPts.push_back(cv::Point2f(p1.first, p1.second));
-        imgPts.push_back(cv::Point2f(p2.first, p2.second));
-        imgPts.push_back(cv::Point2f(p3.first, p3.second));
-        imgPts.push_back(cv::Point2f(p4.first, p4.second));
-
-
         cv::solvePnP(objPts, imgPts, cameraMatrix, distCoeffs, rvec, tvec);
 
         img = projectAxis(img);
